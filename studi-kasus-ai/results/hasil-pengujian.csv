@@ -1,0 +1,5 @@
+Nomor_Uji,Suhu_Celsius,Derajat_Rendah,Derajat_Ideal,Derajat_Tinggi,Status_Dominan,Rekomendasi
+1,72.0,1.0,0.0,0.0,Rendah,Lanjutkan pemanasan secara bertahap menuju target 90°C.
+2,109.0,0.0,0.0,1.0,Tinggi,Kurangi pemanasan segera — suhu mendekati titik didih dan berisiko meluapkan cairan.
+3,62.0,1.0,0.0,0.0,Rendah,Lanjutkan pemanasan secara bertahap menuju target 90°C.
+4,94.0,0.0,0.6,0.4,Ideal,Pertahankan intensitas pemanasan — suhu stabil di sekitar target 90°C.

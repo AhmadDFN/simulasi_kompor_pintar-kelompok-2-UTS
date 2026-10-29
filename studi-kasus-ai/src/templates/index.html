@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fuzzifikasi Kompor Pintar</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+</head>
+
+<body class="bg-light">
+
+<div class="container py-4" style="max-width: 860px;">
+
+  <!-- Header -->
+  <div class="mb-4">
+    <h5 class="fw-bold mb-0">Fuzzifikasi Sensor Termal Kompor Pintar</h5>
+    <small class="text-muted">Domain: 60°C – 110°C &nbsp;·&nbsp; Target Ideal: 90°C &nbsp;·&nbsp; Logika Fuzzy – Topik 3</small>
+    <hr class="mt-2 mb-0">
+  </div>
+
+  <!-- Notifikasi Toast (pojok kanan atas, tidak memotong layout) -->
+  {% if pesan_galat or pesan_sukses %}
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999;">
+    {% if pesan_galat %}
+    <div class="toast align-items-center text-bg-danger border-0 show" role="alert">
+      <div class="d-flex">
+        <div class="toast-body small">{{ pesan_galat }}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+    {% endif %}
+    {% if pesan_sukses %}
+    <div class="toast align-items-center text-bg-success border-0 show" role="alert">
+      <div class="d-flex">
+        <div class="toast-body small">{{ pesan_sukses }}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Input + Hasil -->
+  <div class="row g-3 mb-3">
+
+    <!-- Form Input -->
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-uppercase text-muted fw-semibold mb-3" style="font-size:.75rem; letter-spacing:.5px;">Input Suhu</p>
+          <form method="POST" action="/uji-suhu" id="form_pengujian_suhu">
+            <div class="mb-2">
+              <label for="input_suhu_kompor" class="form-label small fw-semibold">Suhu (°C)</label>
+              <input type="number" step="0.1" min="{{ suhu_minimum }}" max="{{ suhu_maksimum }}"
+                class="form-control" id="input_suhu_kompor" name="suhu_input"
+                placeholder="cth: 85.5" autocomplete="off" required />
+              <div class="form-text">{{ suhu_minimum|int }}°C – {{ suhu_maksimum|int }}°C</div>
+            </div>
+            <button type="submit" class="btn btn-dark w-100 btn-sm mb-2">Hitung Keanggotaan</button>
+          </form>
+          <form method="POST" action="/reset-riwayat"
+                onsubmit="return confirm('Reset riwayat manual?')">
+            <button type="submit" class="btn btn-outline-secondary w-100 btn-sm">Reset Riwayat</button>
+          </form>
+
+          <hr class="my-3">
+          <p class="text-uppercase text-muted fw-semibold mb-2" style="font-size:.75rem; letter-spacing:.5px;">Himpunan Fuzzy</p>
+          <div class="row g-1 small text-center">
+            <div class="col-4">
+              <span class="badge bg-info text-dark d-block mb-1">Rendah</span>
+              <span class="text-muted" style="font-size:.72rem;">Bahu kiri<br>[60, 75, 90]</span>
+            </div>
+            <div class="col-4">
+              <span class="badge bg-success d-block mb-1">Ideal</span>
+              <span class="text-muted" style="font-size:.72rem;">Segitiga<br>[80, 90, 100]</span>
+            </div>
+            <div class="col-4">
+              <span class="badge bg-danger d-block mb-1">Tinggi</span>
+              <span class="text-muted" style="font-size:.72rem;">Bahu kanan<br>[90, 100, 110]</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hasil -->
+    <div class="col-md-8">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          {% if hasil_terbaru %}
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <p class="text-uppercase text-muted fw-semibold mb-0" style="font-size:.75rem; letter-spacing:.5px;">
+              Hasil — {{ hasil_terbaru.suhu_celsius }}°C
+            </p>
+            <span class="badge bg-{{ hasil_terbaru.kelas_status }}">{{ hasil_terbaru.status_dominan }}</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="mb-3">
+            {% set baris = [
+              ("Rendah", hasil_terbaru.derajat_rendah, "info"),
+              ("Ideal",  hasil_terbaru.derajat_ideal,  "success"),
+              ("Tinggi", hasil_terbaru.derajat_tinggi, "danger"),
+            ] %}
+            {% for nama, nilai, kelas in baris %}
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="small text-muted" style="width:4.5rem;">μ {{ nama }}</span>
+              <div class="progress flex-grow-1" style="height:.6rem;">
+                <div class="progress-bar bg-{{ kelas }}" style="width:{{ persentase(nilai) }}%"></div>
+              </div>
+              <code class="small" style="width:3.5rem; text-align:right;">{{ "%.3f"|format(nilai) }}</code>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Rumus -->
+          <p class="text-uppercase text-muted fw-semibold mb-1" style="font-size:.75rem; letter-spacing:.5px;">Rincian Rumus</p>
+          <pre class="bg-light border rounded p-2 small mb-3" style="font-size:.8rem; line-height:1.8;">{{ hasil_terbaru.rumus_rendah }}
+{{ hasil_terbaru.rumus_ideal }}
+{{ hasil_terbaru.rumus_tinggi }}</pre>
+
+          <!-- Rekomendasi -->
+          <div class="alert alert-{{ hasil_terbaru.kelas_status }} py-2 mb-0 small">
+            {{ hasil_terbaru.rekomendasi }}
+          </div>
+
+          {% else %}
+          <div class="text-center text-muted py-5">
+            <div class="mb-2" style="font-size:2rem;">🌡</div>
+            <div class="small">Masukkan suhu di panel kiri untuk melihat hasil fuzzifikasi.</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Grafik -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <p class="text-uppercase text-muted fw-semibold mb-2" style="font-size:.75rem; letter-spacing:.5px;">Grafik Fungsi Keanggotaan</p>
+      <img src="{{ data_grafik_base64 }}" alt="Grafik fungsi keanggotaan" class="img-fluid w-100 rounded" />
+    </div>
+  </div>
+
+  <!-- Tabel -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <p class="text-uppercase text-muted fw-semibold mb-0" style="font-size:.75rem; letter-spacing:.5px;">Tabel Hasil Pengujian</p>
+        <a href="/unduh-csv" class="btn btn-outline-dark btn-sm">Unduh CSV</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-bordered align-middle mb-0">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Suhu (°C)</th>
+              <th>μ Rendah</th>
+              <th>μ Ideal</th>
+              <th>μ Tinggi</th>
+              <th>Status</th>
+              <th>Sumber</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for data in daftar_hasil_bawaan %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              <td class="fw-semibold">{{ data.suhu_celsius }}°C</td>
+              <td class="text-info">{{ "%.3f"|format(data.derajat_rendah) }}</td>
+              <td class="text-success">{{ "%.3f"|format(data.derajat_ideal) }}</td>
+              <td class="text-danger">{{ "%.3f"|format(data.derajat_tinggi) }}</td>
+              <td><span class="badge bg-{{ data.kelas_status }}">{{ data.status_dominan }}</span></td>
+              <td><span class="badge bg-secondary">Bawaan</span></td>
+            </tr>
+            {% endfor %}
+            {% for data in riwayat_manual %}
+            <tr>
+              <td class="text-muted">{{ jumlah_bawaan + loop.index }}</td>
+              <td class="fw-semibold">{{ data.suhu_celsius }}°C</td>
+              <td class="text-info">{{ "%.3f"|format(data.derajat_rendah) }}</td>
+              <td class="text-success">{{ "%.3f"|format(data.derajat_ideal) }}</td>
+              <td class="text-danger">{{ "%.3f"|format(data.derajat_tinggi) }}</td>
+              <td><span class="badge bg-{{ data.kelas_status }}">{{ data.status_dominan }}</span></td>
+              <td><span class="badge bg-warning text-dark">Manual</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="text-muted mt-2" style="font-size:.78rem;">
+        Total {{ daftar_hasil_bawaan|length + riwayat_manual|length }} skenario
+        ({{ daftar_hasil_bawaan|length }} bawaan · {{ riwayat_manual|length }} manual)
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="text-center text-muted" style="font-size:.75rem;">
+    Kecerdasan Buatan – Topik 3: Logika Fuzzy · Kelompok 2, Kelas 5A
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmE4nSoK8W7Pjg4MBdQsKmrh2M" crossorigin="anonymous"></script>
+<script>
+  document.getElementById("form_pengujian_suhu").addEventListener("submit", function(e) {
+    const inp = document.getElementById("input_suhu_kompor");
+    const val = parseFloat(inp.value);
+    if (!inp.value.trim() || isNaN(val) || val < {{ suhu_minimum }} || val > {{ suhu_maksimum }}) {
+      e.preventDefault();
+      inp.classList.add("is-invalid");
+    } else {
+      inp.classList.remove("is-invalid");
+    }
+  });
+</script>
+
+</body>
+</html>
